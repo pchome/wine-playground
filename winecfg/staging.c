@@ -142,6 +142,27 @@ static void dxvk_set(BOOL status)
     set_reg_key(config_key, keypath("DllRedirects"), "dxgi", status ? "dxgi-vk.dll" : NULL);
 }
 
+/*
+ * Use old staging vulkan implementation
+ */
+static BOOL oldvk_get(void)
+{
+    BOOL ret, ret2;
+    char *value = get_reg_key(config_key, keypath("DllRedirects"), "vulkan", NULL);
+    char *value2 = get_reg_key(config_key, keypath("DllRedirects"), "vulkan-1", NULL);
+    ret = (value && !strcmp(value, "vulkan-st.dll"));
+    ret2 = (value && !strcmp(value, "vulkan-1-st.dll"));
+    HeapFree(GetProcessHeap(), 0, value);
+    HeapFree(GetProcessHeap(), 0, value2);
+    return ret || ret2;
+}
+static void oldvk_set(BOOL status)
+{
+    set_reg_key(config_key, keypath("DllRedirects"), "vulkan", status ? "vulkan-st.dll" : NULL);
+    set_reg_key(config_key, keypath("DllRedirects"), "vulkan-1", status ? "vulkan-1-st.dll" : NULL);
+    set_reg_key(config_key, keypath("DllOverrides"), "winevulkan", status ? "" : NULL);
+}
+
 static void load_staging_settings(HWND dialog)
 {
     CheckDlgButton(dialog, IDC_ENABLE_CSMT, csmt_get() ? BST_CHECKED : BST_UNCHECKED);
@@ -150,6 +171,7 @@ static void load_staging_settings(HWND dialog)
     CheckDlgButton(dialog, IDC_ENABLE_HIDEWINE, hidewine_get() ? BST_CHECKED : BST_UNCHECKED);
     CheckDlgButton(dialog, IDC_ENABLE_GTK3, gtk3_get() ? BST_CHECKED : BST_UNCHECKED);
     CheckDlgButton(dialog, IDC_ENABLE_DXVK, dxvk_get() ? BST_CHECKED : BST_UNCHECKED);
+    CheckDlgButton(dialog, IDC_ENABLE_OLD_VULKAN, oldvk_get() ? BST_CHECKED : BST_UNCHECKED);
 
 #ifndef HAVE_VAAPI
     disable(IDC_ENABLE_VAAPI);
@@ -204,6 +226,10 @@ INT_PTR CALLBACK StagingDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
             return TRUE;
         case IDC_ENABLE_DXVK:
             dxvk_set(IsDlgButtonChecked(hDlg, IDC_ENABLE_DXVK) == BST_CHECKED);
+            SendMessageW(GetParent(hDlg), PSM_CHANGED, 0, 0);
+            return TRUE;
+        case IDC_ENABLE_OLD_VULKAN:
+            oldvk_set(IsDlgButtonChecked(hDlg, IDC_ENABLE_OLD_VULKAN) == BST_CHECKED);
             SendMessageW(GetParent(hDlg), PSM_CHANGED, 0, 0);
             return TRUE;
         }

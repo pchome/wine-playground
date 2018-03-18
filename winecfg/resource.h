@@ -219,6 +219,7 @@
 #define IDC_ENABLE_HIDEWINE             9004
 #define IDC_ENABLE_GTK3                 9005
 #define IDC_ENABLE_DXVK                 9006
+#define IDC_ENABLE_OLD_VULKAN           9007
 
 /* About tab */
 #define IDC_ABT_OWNER                8432
