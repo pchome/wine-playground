@@ -1,0 +1,73 @@
+diff --git a/configure.ac b/configure.ac
+index 85c4d87..45fa56a 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -1278,8 +1278,8 @@ else
+                      [enable_winex11_drv])
+ fi
+ 
+-test "x$X_LIBS" = "x" && enable_vulkan=${enable_vulkan:-no}
+-test "x$X_LIBS" = "x" && enable_vulkan_1=${enable_vulkan_1:-no}
++test "x$X_LIBS" = "x" && enable_vulkan_st=${with_vulkan:-no}
++test "x$X_LIBS" = "x" && enable_vulkan_1_st=${with_vulkan:-no}
+ 
+ dnl **** Check for OpenCL ****
+ if test "$ac_cv_header_CL_cl_h" = "yes"
+@@ -3726,8 +3726,8 @@ WINE_CONFIG_MAKEFILE(dlls/vnbt.vxd,enable_win16)
+ WINE_CONFIG_MAKEFILE(dlls/vnetbios.vxd,enable_win16)
+ WINE_CONFIG_MAKEFILE(dlls/vssapi)
+ WINE_CONFIG_MAKEFILE(dlls/vtdapi.vxd,enable_win16)
+-WINE_CONFIG_MAKEFILE(dlls/vulkan-1)
+-WINE_CONFIG_MAKEFILE(dlls/vulkan)
++WINE_CONFIG_MAKEFILE(dlls/vulkan-1-st)
++WINE_CONFIG_MAKEFILE(dlls/vulkan-st)
+ WINE_CONFIG_MAKEFILE(dlls/vwin32.vxd,enable_win16)
+ WINE_CONFIG_MAKEFILE(dlls/w32skrnl,enable_win16)
+ WINE_CONFIG_MAKEFILE(dlls/w32sys.dll16,enable_win16)
+diff --git a/dlls/vulkan-1-st/Makefile.in b/dlls/vulkan-1-st/Makefile.in
+new file mode 100644
+index 0000000..aa56b2a
+--- /dev/null
++++ b/dlls/vulkan-1-st/Makefile.in
+@@ -0,0 +1 @@
++MODULE    = vulkan-1-st.dll
+diff --git a/dlls/vulkan-1/vulkan-1.spec b/dlls/vulkan-1-st/vulkan-1-st.spec
+similarity index 100%
+rename from dlls/vulkan-1/vulkan-1.spec
+rename to dlls/vulkan-1-st/vulkan-1-st.spec
+diff --git a/dlls/vulkan-1/Makefile.in b/dlls/vulkan-1/Makefile.in
+deleted file mode 100644
+index 4960141..0000000
+--- a/dlls/vulkan-1/Makefile.in
++++ /dev/null
+@@ -1 +0,0 @@
+-MODULE    = vulkan-1.dll
+diff --git a/dlls/vulkan/Makefile.in b/dlls/vulkan-st/Makefile.in
+similarity index 83%
+rename from dlls/vulkan/Makefile.in
+rename to dlls/vulkan-st/Makefile.in
+index 7ee6d18..70895ab 100644
+--- a/dlls/vulkan/Makefile.in
++++ b/dlls/vulkan-st/Makefile.in
+@@ -1,4 +1,4 @@
+-MODULE    = vulkan.dll
++MODULE    = vulkan-st.dll
+ IMPORTS   = user32
+ EXTRAINCL = $(X_CFLAGS)
+ EXTRALIBS = $(X_LIBS) $(X_EXTRA_LIBS)
+diff --git a/dlls/vulkan/vulkan.spec b/dlls/vulkan-st/vulkan-st.spec
+similarity index 100%
+rename from dlls/vulkan/vulkan.spec
+rename to dlls/vulkan-st/vulkan-st.spec
+diff --git a/dlls/vulkan/vulkan_main.c b/dlls/vulkan-st/vulkan_main.c
+similarity index 100%
+rename from dlls/vulkan/vulkan_main.c
+rename to dlls/vulkan-st/vulkan_main.c
+diff --git a/dlls/vulkan/vulkan_private.h b/dlls/vulkan-st/vulkan_private.h
+similarity index 100%
+rename from dlls/vulkan/vulkan_private.h
+rename to dlls/vulkan-st/vulkan_private.h
+diff --git a/dlls/vulkan/vulkan_thunks.c b/dlls/vulkan-st/vulkan_thunks.c
+similarity index 100%
+rename from dlls/vulkan/vulkan_thunks.c
+rename to dlls/vulkan-st/vulkan_thunks.c
