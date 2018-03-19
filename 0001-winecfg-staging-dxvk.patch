@@ -1,0 +1,105 @@
+diff --git a/programs/winecfg/resource.h b/programs/winecfg/resource.h
+index b94e773..18bd578 100644
+--- a/programs/winecfg/resource.h
++++ b/programs/winecfg/resource.h
+@@ -218,6 +218,7 @@
+ #define IDC_ENABLE_EAX                  9003
+ #define IDC_ENABLE_HIDEWINE             9004
+ #define IDC_ENABLE_GTK3                 9005
++#define IDC_ENABLE_DXVK                 9006
+ 
+ /* About tab */
+ #define IDC_ABT_OWNER                8432
+diff --git a/programs/winecfg/staging.c b/programs/winecfg/staging.c
+index a96bdca..257314e 100644
+--- a/programs/winecfg/staging.c
++++ b/programs/winecfg/staging.c
+@@ -122,6 +122,26 @@ static void gtk3_set(BOOL status)
+ #endif
+ }
+ 
++/*
++ * DXVK
++ */
++static BOOL dxvk_get(void)
++{
++    BOOL ret, ret2;
++    char *value = get_reg_key(config_key, keypath("DllRedirects"), "d3d11", NULL);
++    char *value2 = get_reg_key(config_key, keypath("DllRedirects"), "dxgi", NULL);
++    ret = (value && !strcmp(value, "d3d11-vk.dll"));
++    ret2 = (value && !strcmp(value, "dxgi-vk.dll"));
++    HeapFree(GetProcessHeap(), 0, value);
++    HeapFree(GetProcessHeap(), 0, value2);
++    return ret || ret2;
++}
++static void dxvk_set(BOOL status)
++{
++    set_reg_key(config_key, keypath("DllRedirects"), "d3d11", status ? "d3d11-vk.dll" : NULL);
++    set_reg_key(config_key, keypath("DllRedirects"), "dxgi", status ? "dxgi-vk.dll" : NULL);
++}
++
+ static void load_staging_settings(HWND dialog)
+ {
+     CheckDlgButton(dialog, IDC_ENABLE_CSMT, csmt_get() ? BST_CHECKED : BST_UNCHECKED);
+@@ -129,6 +149,7 @@ static void load_staging_settings(HWND dialog)
+     CheckDlgButton(dialog, IDC_ENABLE_EAX, eax_get() ? BST_CHECKED : BST_UNCHECKED);
+     CheckDlgButton(dialog, IDC_ENABLE_HIDEWINE, hidewine_get() ? BST_CHECKED : BST_UNCHECKED);
+     CheckDlgButton(dialog, IDC_ENABLE_GTK3, gtk3_get() ? BST_CHECKED : BST_UNCHECKED);
++    CheckDlgButton(dialog, IDC_ENABLE_DXVK, dxvk_get() ? BST_CHECKED : BST_UNCHECKED);
+ 
+ #ifndef HAVE_VAAPI
+     disable(IDC_ENABLE_VAAPI);
+@@ -181,6 +202,10 @@ INT_PTR CALLBACK StagingDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
+             gtk3_set(IsDlgButtonChecked(hDlg, IDC_ENABLE_GTK3) == BST_CHECKED);
+             SendMessageW(GetParent(hDlg), PSM_CHANGED, 0, 0);
+             return TRUE;
++        case IDC_ENABLE_DXVK:
++            dxvk_set(IsDlgButtonChecked(hDlg, IDC_ENABLE_DXVK) == BST_CHECKED);
++            SendMessageW(GetParent(hDlg), PSM_CHANGED, 0, 0);
++            return TRUE;
+         }
+         break;
+     }
+diff --git a/programs/winecfg/winecfg.rc b/programs/winecfg/winecfg.rc
+index 314e985..0bf87e6 100644
+--- a/programs/winecfg/winecfg.rc
++++ b/programs/winecfg/winecfg.rc
+@@ -159,7 +159,7 @@ BEGIN
+     PUSHBUTTON	    "Add appli&cation...",IDC_APP_ADDAPP, 15,174,112,14
+     PUSHBUTTON	    "&Remove application",IDC_APP_REMOVEAPP, 133,174,112,14
+     LTEXT           "&Windows Version:",IDC_STATIC,17,196,80,8
+-    COMBOBOX        IDC_WINVER,100,194,145,56,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP    
++    COMBOBOX        IDC_WINVER,100,194,145,56,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+ END
+ 
+ IDD_GRAPHCFG DIALOG  0, 0, 260, 220
+@@ -197,7 +197,7 @@ BEGIN
+     LTEXT           "Existing &overrides:",IDC_STATIC,16,86,100,8
+     LISTBOX         IDC_DLLS_LIST,16,96,140,112,WS_BORDER | WS_TABSTOP | WS_VSCROLL
+     PUSHBUTTON      "&Edit...",IDC_DLLS_EDITDLL,164,96,82,14
+-    PUSHBUTTON      "&Remove",IDC_DLLS_REMOVEDLL,164,114,82,14 
++    PUSHBUTTON      "&Remove",IDC_DLLS_REMOVEDLL,164,114,82,14
+ END
+ 
+ IDD_LOADORDER DIALOG 80, 90, 160, 92
+@@ -241,10 +241,10 @@ BEGIN
+     LTEXT           "&Path:",IDC_STATIC_PATH,15,123,42,9
+     EDITTEXT        IDC_EDIT_PATH,59,120,122,13,ES_AUTOHSCROLL | WS_TABSTOP
+     PUSHBUTTON      "&Browse...",IDC_BUTTON_BROWSE_PATH,186,120,60,13
+-    
++
+     LTEXT           "&Type:",IDC_STATIC_TYPE,15,138,42,10
+     COMBOBOX        IDC_COMBO_TYPE,59,135,77,60,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+-    
++
+     PUSHBUTTON      "Show Advan&ced",IDC_BUTTON_SHOW_HIDE_ADVANCED,146,135,100,13
+     LTEXT           "De&vice:",IDC_STATIC_DEVICE,15,153,42,9
+     EDITTEXT        IDC_EDIT_DEVICE,59,150,122,13,ES_AUTOHSCROLL | WS_TABSTOP
+@@ -320,6 +320,7 @@ BEGIN
+     CONTROL     "Enable Environmental Audio E&xtensions (EAX)",IDC_ENABLE_EAX,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,70,230,8
+     CONTROL     "&Hide Wine version from applications",IDC_ENABLE_HIDEWINE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,85,230,8
+     CONTROL     "Enable &GTK3 Theming",IDC_ENABLE_GTK3,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,100,230,8
++    CONTROL     "Enable &DXVK for DX11 applications",IDC_ENABLE_DXVK,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,115,230,8
+ END
+ 
+ LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL

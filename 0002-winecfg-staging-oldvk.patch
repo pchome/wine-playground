@@ -1,0 +1,75 @@
+diff --git a/programs/winecfg/resource.h b/programs/winecfg/resource.h
+index 18bd578..170ce49 100644
+--- a/programs/winecfg/resource.h
++++ b/programs/winecfg/resource.h
+@@ -219,6 +219,7 @@
+ #define IDC_ENABLE_HIDEWINE             9004
+ #define IDC_ENABLE_GTK3                 9005
+ #define IDC_ENABLE_DXVK                 9006
++#define IDC_ENABLE_OLD_VULKAN           9007
+ 
+ /* About tab */
+ #define IDC_ABT_OWNER                8432
+diff --git a/programs/winecfg/staging.c b/programs/winecfg/staging.c
+index 257314e..87d024c 100644
+--- a/programs/winecfg/staging.c
++++ b/programs/winecfg/staging.c
+@@ -142,6 +142,27 @@ static void dxvk_set(BOOL status)
+     set_reg_key(config_key, keypath("DllRedirects"), "dxgi", status ? "dxgi-vk.dll" : NULL);
+ }
+ 
++/*
++ * Use old staging vulkan implementation
++ */
++static BOOL oldvk_get(void)
++{
++    BOOL ret, ret2;
++    char *value = get_reg_key(config_key, keypath("DllRedirects"), "vulkan", NULL);
++    char *value2 = get_reg_key(config_key, keypath("DllRedirects"), "vulkan-1", NULL);
++    ret = (value && !strcmp(value, "vulkan-st.dll"));
++    ret2 = (value && !strcmp(value, "vulkan-1-st.dll"));
++    HeapFree(GetProcessHeap(), 0, value);
++    HeapFree(GetProcessHeap(), 0, value2);
++    return ret || ret2;
++}
++static void oldvk_set(BOOL status)
++{
++    set_reg_key(config_key, keypath("DllRedirects"), "vulkan", status ? "vulkan-st.dll" : NULL);
++    set_reg_key(config_key, keypath("DllRedirects"), "vulkan-1", status ? "vulkan-1-st.dll" : NULL);
++    set_reg_key(config_key, keypath("DllOverrides"), "winevulkan", status ? "" : NULL);
++}
++
+ static void load_staging_settings(HWND dialog)
+ {
+     CheckDlgButton(dialog, IDC_ENABLE_CSMT, csmt_get() ? BST_CHECKED : BST_UNCHECKED);
+@@ -150,6 +171,7 @@ static void load_staging_settings(HWND dialog)
+     CheckDlgButton(dialog, IDC_ENABLE_HIDEWINE, hidewine_get() ? BST_CHECKED : BST_UNCHECKED);
+     CheckDlgButton(dialog, IDC_ENABLE_GTK3, gtk3_get() ? BST_CHECKED : BST_UNCHECKED);
+     CheckDlgButton(dialog, IDC_ENABLE_DXVK, dxvk_get() ? BST_CHECKED : BST_UNCHECKED);
++    CheckDlgButton(dialog, IDC_ENABLE_OLD_VULKAN, oldvk_get() ? BST_CHECKED : BST_UNCHECKED);
+ 
+ #ifndef HAVE_VAAPI
+     disable(IDC_ENABLE_VAAPI);
+@@ -206,6 +228,10 @@ INT_PTR CALLBACK StagingDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
+             dxvk_set(IsDlgButtonChecked(hDlg, IDC_ENABLE_DXVK) == BST_CHECKED);
+             SendMessageW(GetParent(hDlg), PSM_CHANGED, 0, 0);
+             return TRUE;
++        case IDC_ENABLE_OLD_VULKAN:
++            oldvk_set(IsDlgButtonChecked(hDlg, IDC_ENABLE_OLD_VULKAN) == BST_CHECKED);
++            SendMessageW(GetParent(hDlg), PSM_CHANGED, 0, 0);
++            return TRUE;
+         }
+         break;
+     }
+diff --git a/programs/winecfg/winecfg.rc b/programs/winecfg/winecfg.rc
+index 0bf87e6..0666a02 100644
+--- a/programs/winecfg/winecfg.rc
++++ b/programs/winecfg/winecfg.rc
+@@ -321,6 +321,7 @@ BEGIN
+     CONTROL     "&Hide Wine version from applications",IDC_ENABLE_HIDEWINE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,85,230,8
+     CONTROL     "Enable &GTK3 Theming",IDC_ENABLE_GTK3,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,100,230,8
+     CONTROL     "Enable &DXVK for DX11 applications",IDC_ENABLE_DXVK,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,115,230,8
++    CONTROL     "Use &OLD (v2.21) staging vulkan implementation",IDC_ENABLE_OLD_VULKAN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,130,230,8
+ END
+ 
+ LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
