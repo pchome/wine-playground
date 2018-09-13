@@ -1,0 +1,287 @@
+--- a/dlls/nvapi/nvapi.c
++++ b/dlls/nvapi/nvapi.c
+@@ -290,9 +290,204 @@
+     return NVAPI_OK;
+ }
+ 
++static NvAPI_Status CDECL NvAPI_GetInterfaceVersionString(NvAPI_ShortString szDesc)
++{
++    NvAPI_ShortString version_str = {'N','v','A','P','I','v','e','r','3','8','4',0};
++
++    TRACE("(%p)\n", szDesc);
++
++    if (!szDesc)
++        return NVAPI_INVALID_ARGUMENT;
++
++    memcpy(szDesc, version_str, sizeof(version_str));
++
++    return NVAPI_OK;
++}
++
++static NvAPI_Status CDECL NvAPI_GPU_GetPCIIdentifiers(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pDeviceId, NvU32 *pSubSystemId, NvU32 *pRevisionId, NvU32 *pExtDeviceId)
++{
++    TRACE("(%p, %p, %p, %p, %p)\n", hPhysicalGpu, pDeviceId, pSubSystemId, pRevisionId, pExtDeviceId);
++
++    if (!hPhysicalGpu)
++        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
++
++    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
++    {
++        FIXME("invalid handle: %p\n", hPhysicalGpu);
++        return NVAPI_INVALID_HANDLE;
++    }
++
++    if (!pDeviceId || !pSubSystemId || !pRevisionId || !pExtDeviceId)
++        return NVAPI_INVALID_ARGUMENT;
++
++    *pDeviceId = 0x138010de;
++    *pSubSystemId = 0x138010de;
++    *pRevisionId = 0xa2;
++    *pExtDeviceId = 0x138010de;
++
++    return NVAPI_OK;
++}
++
++
++static NvAPI_Status CDECL NvAPI_GPU_GetBusId(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pBusId)
++{
++    TRACE("(%p, %p)\n", hPhysicalGpu, pBusId);
++
++    if (!hPhysicalGpu)
++        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
++
++    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
++    {
++        FIXME("invalid handle: %p\n", hPhysicalGpu);
++        return NVAPI_INVALID_HANDLE;
++    }
++
++    if (!pBusId)
++        return NVAPI_INVALID_ARGUMENT;
++
++    *pBusId = 0x01;
++
++    return NVAPI_OK;
++}
++
++static NvAPI_Status CDECL NvAPI_GPU_GetBusSlotId(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pBusSlotId)
++{
++    TRACE("(%p, %p)\n", hPhysicalGpu, pBusSlotId);
++
++    if (!hPhysicalGpu)
++        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
++
++    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
++    {
++        FIXME("invalid handle: %p\n", hPhysicalGpu);
++        return NVAPI_INVALID_HANDLE;
++    }
++
++    if (!pBusSlotId)
++        return NVAPI_INVALID_ARGUMENT;
++
++    *pBusSlotId = 0;
++
++    return NVAPI_OK;
++}
++
++static NvAPI_Status CDECL NvAPI_GPU_GetFBWidthAndLocation(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pWidth, NvU32 *pLocation)
++{
++    TRACE("(%p, %p, %p)\n", hPhysicalGpu, pWidth, pLocation);
++
++    if (!hPhysicalGpu)
++        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
++
++    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
++    {
++        FIXME("invalid handle: %p\n", hPhysicalGpu);
++        return NVAPI_INVALID_HANDLE;
++    }
++
++    if (!pWidth || !pLocation)
++        return NVAPI_INVALID_ARGUMENT;
++
++    *pWidth = 0;
++    *pLocation = 0;
++
++    return NVAPI_OK;
++}
++
++static NvAPI_Status CDECL NvAPI_GPU_GetRamType(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pMemType)
++{
++    TRACE("(%p, %p)\n", hPhysicalGpu, pMemType);
++
++    if (!hPhysicalGpu)
++        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
++
++    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
++    {
++        FIXME("invalid handle: %p\n", hPhysicalGpu);
++        return NVAPI_INVALID_HANDLE;
++    }
++
++    if (!pMemType)
++        return NVAPI_INVALID_ARGUMENT;
++
++    *pMemType = 8; // GDDR5 ?
++
++    return NVAPI_OK;
++}
++
++static NvAPI_Status CDECL NvAPI_GPU_GetVbiosVersionString(NvPhysicalGpuHandle hPhysicalGpu, NvAPI_ShortString szBiosRevision)
++{
++    NvAPI_ShortString version_str = {'8','2','.','0','7','.','3','2','.','0','0','.','5','c',0};
++
++    TRACE("(%p, %p)\n", hPhysicalGpu, szBiosRevision);
++
++    if (!hPhysicalGpu)
++        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
++
++    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
++    {
++        FIXME("invalid handle: %p\n", hPhysicalGpu);
++        return NVAPI_INVALID_HANDLE;
++    }
++
++    if (!szBiosRevision)
++        return NVAPI_INVALID_ARGUMENT;
++
++    memcpy(szBiosRevision, version_str, sizeof(version_str));
++
++    return NVAPI_OK;
++}
++
++static NvAPI_Status CDECL NvAPI_GPU_GetDynamicPstatesInfoEx(NvPhysicalGpuHandle hPhysicalGpu, NV_GPU_DYNAMIC_PSTATES_INFO_EX *pDynamicPstatesInfoEx)
++{
++    TRACE("(%p, %p)\n", hPhysicalGpu, pDynamicPstatesInfoEx);
++
++    if (!hPhysicalGpu)
++        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
++
++    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
++    {
++        FIXME("invalid handle: %p\n", hPhysicalGpu);
++        return NVAPI_INVALID_HANDLE;
++    }
++
++    if (!pDynamicPstatesInfoEx)
++        return NVAPI_INVALID_ARGUMENT;
++
++    if (pDynamicPstatesInfoEx->version != NV_UNKNOWN_1_VER)
++        return NVAPI_INCOMPATIBLE_STRUCT_VERSION;
++
++    pDynamicPstatesInfoEx->flags = 0;
++    pDynamicPstatesInfoEx->utilization[0].bIsPresent = 1;
++    pDynamicPstatesInfoEx->utilization[0].percentage = 10;
++
++    return NVAPI_OK;
++}
++
++static NvAPI_Status CDECL NvAPI_GPU_GetTachReading(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pValue)
++{
++    TRACE("(%p, %p)\n", hPhysicalGpu, pValue);
++
++    if (!hPhysicalGpu)
++        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
++
++    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
++    {
++        FIXME("invalid handle: %p\n", hPhysicalGpu);
++        return NVAPI_INVALID_HANDLE;
++    }
++
++    if (!pValue)
++        return NVAPI_INVALID_ARGUMENT;
++
++    // fan speed
++    *pValue = 30;
++
++    return NVAPI_OK;
++}
++
+ static NvAPI_Status CDECL NvAPI_GetDisplayDriverVersion(NvDisplayHandle hNvDisplay, NV_DISPLAY_DRIVER_VERSION *pVersion)
+ {
+-    NvAPI_ShortString build_str = {'r','3','3','7','_','0','0','-','1','8','9',0};
++    NvAPI_ShortString build_str = {'r','3','8','7','_','0','0','-','1','8','9',0};
+     NvAPI_ShortString adapter = {'G','e','F','o','r','c','e',' ','9','9','9',' ','G','T','X', 0};
+     /* TODO: find a good way to get the graphic card name, EnumDisplayDevices is useless in Wine */
+     /* For now we return the non existing GeForce 999 GTX as graphic card name */
+@@ -308,7 +503,7 @@
+     if (!pVersion)
+         return NVAPI_INVALID_ARGUMENT;
+ 
+-    pVersion->drvVersion = 33788;
++    pVersion->drvVersion = 38734;
+     pVersion->bldChangeListNum = 0;
+     memcpy(pVersion->szBuildBranchString, build_str, sizeof(build_str));
+     memcpy(pVersion->szAdapterString, adapter, sizeof(adapter));
+@@ -518,7 +713,7 @@
+ 
+ static NvAPI_Status CDECL NvAPI_SYS_GetDriverAndBranchVersion(NvU32* pDriverVersion, NvAPI_ShortString szBuildBranchString)
+ {
+-    NvAPI_ShortString build_str = {'r','3','3','7','_','0','0',0};
++    NvAPI_ShortString build_str = {'r','3','8','7','_','0','0',0};
+ 
+     TRACE("(%p, %p)\n", pDriverVersion, szBuildBranchString);
+ 
+@@ -526,7 +721,7 @@
+         return NVAPI_INVALID_POINTER;
+ 
+     memcpy(szBuildBranchString, build_str, sizeof(build_str));
+-    *pDriverVersion = 33788;
++    *pDriverVersion = 38734;
+ 
+     return NVAPI_OK;
+ }
+@@ -674,7 +869,7 @@
+     if (!pCount)
+         return NVAPI_INVALID_ARGUMENT;
+ 
+-    *pCount = 1;
++    *pCount = 640;
+     return NVAPI_OK;
+ }
+ 
+@@ -805,6 +1000,15 @@
+         {0x6a16d3a0, NvAPI_D3D11_CreateDevice},
+         {0xbb939ee5, NvAPI_D3D11_CreateDeviceAndSwapChain},
+ #endif
++        {0x1053fa5,  NvAPI_GetInterfaceVersionString},
++        {0x2ddfb66e, NvAPI_GPU_GetPCIIdentifiers},
++        {0x1be0b8e5, NvAPI_GPU_GetBusId},
++        {0x2a0a350f, NvAPI_GPU_GetBusSlotId},
++        {0x11104158, NvAPI_GPU_GetFBWidthAndLocation},
++        {0x57f7caac, NvAPI_GPU_GetRamType},
++        {0xa561fd7d, NvAPI_GPU_GetVbiosVersionString},
++        {0x60ded2ed, NvAPI_GPU_GetDynamicPstatesInfoEx},
++        {0x5f608315, NvAPI_GPU_GetTachReading},
+     };
+     unsigned int i;
+     TRACE("(%x)\n", offset);
+--- a/include/nvapi.h
++++ b/include/nvapi.h
+@@ -46,6 +46,7 @@
+ #define NVAPI_MAX_LOGICAL_GPUS 64
+ #define NVAPI_ADVANCED_DISPLAY_HEADS 4
+ #define NVAPI_MAX_DISPLAYS (NVAPI_PHYSICAL_GPUS * NVAPI_ADVANCED_DISPLAY_HEADS)
++#define NVAPI_MAX_GPU_UTILIZATIONS 8
+ 
+ #ifdef __x86_64__
+ 
+@@ -106,6 +123,16 @@
+ #define NV_GET_CURRENT_SLI_STATE_VER NV_GET_CURRENT_SLI_STATE_VER2
+ #define NV_GET_CURRENT_SLI_STATE     NV_GET_CURRENT_SLI_STATE_V2
+ 
++typedef struct
++{
++    NvU32 version;
++    NvU32 flags;
++    struct {
++        NvU32 bIsPresent;
++        NvU32 percentage;
++    } utilization[NVAPI_MAX_GPU_UTILIZATIONS];
++} NV_GPU_DYNAMIC_PSTATES_INFO_EX;
++
+ /* undocumented stuff */
+ typedef struct
+ {

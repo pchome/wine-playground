@@ -1,0 +1,21 @@
+--- a/dlls/nvapi/nvapi.c
++++ b/dlls/nvapi/nvapi.c
+@@ -36,6 +36,9 @@
+ 
+ WINE_DEFAULT_DEBUG_CHANNEL(nvapi);
+ 
++/* Sometimes NvAPI_Unknown3() use 32bit hendle in 64bit prefix */
++#define FAKE_PHYSICAL_GPU_32 ((NvPhysicalGpuHandle)0xdead0001)
++
+ #if defined(__i386__) || defined(__x86_64__)
+ 
+ static NvAPI_Status CDECL unimplemented_stub(unsigned int offset)
+@@ -279,7 +282,7 @@
+     if (!gpuHandle || !retHandle)
+         return NVAPI_INVALID_ARGUMENT;
+ 
+-    if (gpuHandle == FAKE_PHYSICAL_GPU)
++    if (gpuHandle == FAKE_PHYSICAL_GPU || gpuHandle == FAKE_PHYSICAL_GPU_32)
+         *retHandle = (void *)gpuHandle;
+     else
+     {

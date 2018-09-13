@@ -1,0 +1,62 @@
+--- a/dlls/nvapi/nvapi.c
++++ b/dlls/nvapi/nvapi.c
+@@ -485,6 +485,50 @@
+     return NVAPI_OK;
+ }
+ 
++static NvAPI_Status CDECL NvAPI_GPU_GetConnectedOutputs(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pOutputsMask)
++{
++    TRACE("(%p, %p)\n", hPhysicalGpu, pOutputsMask);
++
++    if (!hPhysicalGpu)
++        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
++
++    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
++    {
++        FIXME("invalid handle: %p\n", hPhysicalGpu);
++        return NVAPI_INVALID_HANDLE;
++    }
++
++    if (!pOutputsMask)
++        return NVAPI_INVALID_ARGUMENT;
++
++    // 2 - DFP
++    *pOutputsMask = 2;
++
++    return NVAPI_OK;
++}
++
++static NvAPI_Status CDECL NvAPI_GPU_GetActiveOutputs(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pOutputsMask)
++{
++    TRACE("(%p, %p)\n", hPhysicalGpu, pOutputsMask);
++
++    if (!hPhysicalGpu)
++        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
++
++    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
++    {
++        FIXME("invalid handle: %p\n", hPhysicalGpu);
++        return NVAPI_INVALID_HANDLE;
++    }
++
++    if (!pOutputsMask)
++        return NVAPI_INVALID_ARGUMENT;
++
++    // 2 - DFP
++    *pOutputsMask = 2;
++
++    return NVAPI_OK;
++}
++
+ static NvAPI_Status CDECL NvAPI_GetDisplayDriverVersion(NvDisplayHandle hNvDisplay, NV_DISPLAY_DRIVER_VERSION *pVersion)
+ {
+     NvAPI_ShortString build_str = {'r','3','8','7','_','0','0','-','1','8','9',0};
+@@ -1009,6 +1053,8 @@
+         {0xa561fd7d, NvAPI_GPU_GetVbiosVersionString},
+         {0x60ded2ed, NvAPI_GPU_GetDynamicPstatesInfoEx},
+         {0x5f608315, NvAPI_GPU_GetTachReading},
++        {0x1730bfc9, NvAPI_GPU_GetConnectedOutputs},
++        {0xe3e89b6f, NvAPI_GPU_GetActiveOutputs},
+     };
+     unsigned int i;
+     TRACE("(%x)\n", offset);

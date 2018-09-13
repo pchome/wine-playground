@@ -1,0 +1,39 @@
+--- a/dlls/nvapi/nvapi.c
++++ b/dlls/nvapi/nvapi.c
+@@ -36,11 +36,6 @@
+ 
+ WINE_DEFAULT_DEBUG_CHANNEL(nvapi);
+ 
+-#define FAKE_PHYSICAL_GPU ((NvPhysicalGpuHandle)0xdead0001)
+-#define FAKE_DISPLAY ((NvDisplayHandle)0xdead0002)
+-#define FAKE_LOGICAL_GPU ((NvLogicalGpuHandle)0xdead0003)
+-#define FAKE_DISPLAY_ID ((NvU32)0xdead0004)
+-
+ #if defined(__i386__) || defined(__x86_64__)
+ 
+ static NvAPI_Status CDECL unimplemented_stub(unsigned int offset)
+--- a/include/nvapi.h
++++ b/include/nvapi.h
+@@ -47,6 +47,22 @@
+ #define NVAPI_ADVANCED_DISPLAY_HEADS 4
+ #define NVAPI_MAX_DISPLAYS (NVAPI_PHYSICAL_GPUS * NVAPI_ADVANCED_DISPLAY_HEADS)
+ 
++#ifdef __x86_64__
++
++#define FAKE_PHYSICAL_GPU ((NvPhysicalGpuHandle)0xffffffffdead0001)
++#define FAKE_DISPLAY ((NvDisplayHandle)0xffffffffdead0002)
++#define FAKE_LOGICAL_GPU ((NvLogicalGpuHandle)0xffffffffdead0003)
++#define FAKE_DISPLAY_ID ((NvU32)0xffffffffdead0004)
++
++#else
++
++#define FAKE_PHYSICAL_GPU ((NvPhysicalGpuHandle)0xdead0001)
++#define FAKE_DISPLAY ((NvDisplayHandle)0xdead0002)
++#define FAKE_LOGICAL_GPU ((NvLogicalGpuHandle)0xdead0003)
++#define FAKE_DISPLAY_ID ((NvU32)0xdead0004)
++
++#endif
++
+ typedef char NvAPI_ShortString[NVAPI_SHORT_STRING_MAX];
+ 
+ #define MAKE_NVAPI_VERSION(type,version) (NvU32)(sizeof(type) | ((version)<<16))
