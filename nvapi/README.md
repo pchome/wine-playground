@@ -6,24 +6,33 @@ An attempt to build WINE's NvAPI implementation outside a WINE source tree.
 - [WINE](https://www.winehq.org/)
 - [Meson](http://mesonbuild.com/)
 
-## How to
+## How to build
+
+### init nvapi sources
 ```
-# init nvapi sources
-$ sh nvapi-init.sh
+sh nvapi-init.sh
+```
 
-$ meson --cross-file build-wine32.txt --prefix /tmp/nvapi /tmp/nvapi.w32
-$ cd /tmp/nvapi.w32
-$ ninja install
+### build 32 bit libs
+```
+meson --cross-file build-wine32.txt --prefix /tmp/nvapi /tmp/nvapi.w32
+cd /tmp/nvapi.w32
+ninja install
+```
 
-$ meson --cross-file build-wine64.txt --prefix /tmp/nvapi64 /tmp/nvapi.w64
-$ cd /tmp/nvapi.w64
-$ ninja install
+### build 64 bit libs
+```
+meson --cross-file build-wine64.txt --prefix /tmp/nvapi64 /tmp/nvapi.w64
+cd /tmp/nvapi.w64
+ninja install
+```
 
-# depend only on wined3d
-$ meson --cross-file build-wine64.txt --prefix /tmp/nvapi64_dx9 /tmp/nvapidx9.w64
-$ cd /tmp/nvapidx9.w64
-$ meson configure -Denable_d3d11=false
-$ ninja install
+### depend only on wined3d
+```
+meson --cross-file build-wine64.txt --prefix /tmp/nvapi64_dx9 /tmp/nvapidx9.w64
+cd /tmp/nvapidx9.w64
+meson configure -Denable_d3d11=false
+ninja install
 
 ```
 
