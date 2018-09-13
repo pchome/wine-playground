@@ -28,5 +28,5 @@ $ ninja install
 ```
 
 ## TODO
-`include/config.h` file copyed from my local WINE build directory.
-Better to generate it usin meson.
+`include/config.h` file copied from my local WINE build directory.
+Better to generate it using meson.
