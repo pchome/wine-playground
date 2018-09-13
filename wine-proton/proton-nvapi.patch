@@ -1,0 +1,70 @@
+--- a/proton
++++ b/proton
+@@ -163,6 +163,7 @@
+ check_environment("PROTON_USE_WINED3D11", "wined3d11")
+ check_environment("PROTON_NO_D3D11", "nod3d11")
+ check_environment("PROTON_NO_ESYNC", "noesync")
++check_environment("PROTON_USE_NVAPI", "nvapi")
+ 
+ if not "noesync" in config_opts:
+     env["WINEESYNC"] = "1"
+@@ -320,6 +321,49 @@
+         dlloverrides["dxgi"] = "n"
+         dlloverrides["d3d11"] = "n"
+ 
++    def make_nvapi_links(dll_dir, link_dir):
++        if os.path.lexists(link_dir + "/nvapi.dll"):
++            os.remove(link_dir + "/nvapi.dll")
++        if os.path.lexists(link_dir + "/nvcuda.dll"):
++            os.remove(link_dir + "/nvcuda.dll")
++        if os.path.lexists(link_dir + "/nvcuvid.dll"):
++            os.remove(link_dir + "/nvcuvid.dll")
++        if os.path.lexists(link_dir + "/nvencodeapi.dll"):
++            os.remove(link_dir + "/nvencodeapi.dll")
++        os.symlink(dll_dir + "/nvapi.dll", link_dir + "/nvapi.dll")
++        os.symlink(dll_dir + "/nvcuda.dll", link_dir + "/nvcuda.dll")
++        os.symlink(dll_dir + "/nvcuvid.dll", link_dir + "/nvcuvid.dll")
++        os.symlink(dll_dir + "/nvencodeapi.dll", link_dir + "/nvencodeapi.dll")
++
++    def make_nvapi64_links(dll_dir, link_dir):
++        if os.path.lexists(link_dir + "/nvapi64.dll"):
++            os.remove(link_dir + "/nvapi64.dll")
++        if os.path.lexists(link_dir + "/nvcuda.dll"):
++            os.remove(link_dir + "/nvcuda.dll")
++        if os.path.lexists(link_dir + "/nvcuvid.dll"):
++            os.remove(link_dir + "/nvcuvid.dll")
++        if os.path.lexists(link_dir + "/nvencodeapi64.dll"):
++            os.remove(link_dir + "/nvencodeapi64.dll")
++        os.symlink(dll_dir + "/nvapi64.dll", link_dir + "/nvapi64.dll")
++        os.symlink(dll_dir + "/nvcuda.dll", link_dir + "/nvcuda.dll")
++        os.symlink(dll_dir + "/nvcuvid.dll", link_dir + "/nvcuvid.dll")
++        os.symlink(dll_dir + "/nvencodeapi64.dll", link_dir + "/nvencodeapi64.dll")
++
++    if "nvapi" in config_opts:
++        # use nvapi/nvcuda
++        make_nvapi64_links(basedir + "/dist/lib64/wine/nvapi/",
++            prefix + "drive_c/windows/system32")
++        make_nvapi_links(basedir + "/dist/lib/wine/nvapi/",
++            prefix + "drive_c/windows/syswow64")
++    else:
++        # disable nvapi/nvcuda
++        dlloverrides["nvapi"] = ""
++        dlloverrides["nvapi64"] = ""
++        dlloverrides["nvcuda"] = ""
++        dlloverrides["nvcuvid"] = ""
++        dlloverrides["nvencodeapi"] = ""
++        dlloverrides["nvencodeapi64"] = ""
++
+ if "nod3d11" in config_opts:
+     dlloverrides["d3d11"] = ""
+     if "dxgi" in dlloverrides:
+--- a/user_settings.sample.py
++++ b/user_settings.sample.py
+@@ -17,4 +21,7 @@
+ 
+     #Disable in-process synchronization primitives
+ #    "PROTON_NO_ESYNC": "1",
++
++    # Use nvapi/nvcuda
++#    "PROTON_USE_NVAPI": "1",
+ }
