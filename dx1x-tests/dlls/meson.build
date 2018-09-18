@@ -1,0 +1,5 @@
+subdir('dxgi/tests')
+subdir('d3d10/tests')
+subdir('d3d10_1/tests')
+subdir('d3d10core/tests')
+subdir('d3d11/tests')
