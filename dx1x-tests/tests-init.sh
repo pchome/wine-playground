@@ -29,5 +29,6 @@ git checkout wine/master -- ../dlls/d3d10/tests
 git checkout wine/master -- ../dlls/d3d10_1/tests
 git checkout wine/master -- ../dlls/d3d10core/tests
 git checkout wine/master -- ../dlls/d3d11/tests
+git checkout wine/master -- ../dlls/d3d9/tests
 cd ..
 

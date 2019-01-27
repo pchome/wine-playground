@@ -69,3 +69,8 @@ export WINETEST_REPORT_SUCCESS=1
 ./test-d3d10_1.exe 2>&1 > d3d10_1.test
 ./test-d3d10core.exe 2>&1 > d3d10core.test
 ./test-d3d11.exe 2>&1 > d3d11.test
+
+./test-d3d9-stateblock.exe 2>&1 > d3d9-stateblock.test
+wine explorer.exe /desktop=winecfg,1024x768 test-d3d9-d3d9ex.exe.so 2>&1 > d3d9-d3d9ex.test
+wine explorer.exe /desktop=winecfg,1024x768 test-d3d9-device.exe.so 2>&1 > d3d9-device.test
+wine explorer.exe /desktop=winecfg,1024x768 test-d3d9-visual.exe.so 2>&1 > d3d9-visual.test
