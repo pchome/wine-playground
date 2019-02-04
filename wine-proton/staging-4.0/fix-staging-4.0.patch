@@ -1,0 +1,568 @@
+diff -urN wine-staging-4.0.orig/patches/advapi32-Token_Integrity_Level/0006-ntdll-Add-function-to-create-new-tokens-for-elevatio.patch wine-staging-4.0.patched/patches/advapi32-Token_Integrity_Level/0006-ntdll-Add-function-to-create-new-tokens-for-elevatio.patch
+--- wine-staging-4.0.orig/patches/advapi32-Token_Integrity_Level/0006-ntdll-Add-function-to-create-new-tokens-for-elevatio.patch	2019-01-23 01:25:22.000000000 +0200
++++ wine-staging-4.0.patched/patches/advapi32-Token_Integrity_Level/0006-ntdll-Add-function-to-create-new-tokens-for-elevatio.patch	2019-02-03 17:20:05.355249528 +0200
+@@ -18,15 +18,15 @@
+ --- a/dlls/ntdll/ntdll.spec
+ +++ b/dlls/ntdll/ntdll.spec
+ @@ -1482,6 +1482,9 @@
+- # Virtual memory
+  @ cdecl __wine_locked_recvmsg(long ptr long)
++ @ cdecl __wine_needs_override_large_address_aware()
+  
+ +# Token
+ +@ cdecl __wine_create_default_token(long)
+ +
+  # Version
+  @ cdecl wine_get_version() NTDLL_wine_get_version
+- @ cdecl wine_get_patches() NTDLL_wine_get_patches
++ @ cdecl wine_get_build_id() NTDLL_wine_get_build_id
+ diff --git a/dlls/ntdll/ntdll_misc.h b/dlls/ntdll/ntdll_misc.h
+ index 8a64338..137a22d 100644
+ --- a/dlls/ntdll/ntdll_misc.h
+diff -urN wine-staging-4.0.orig/patches/advapi32-Token_Integrity_Level/0008-ntdll-Implement-process-token-elevation-through-mani.patch wine-staging-4.0.patched/patches/advapi32-Token_Integrity_Level/0008-ntdll-Implement-process-token-elevation-through-mani.patch
+--- wine-staging-4.0.orig/patches/advapi32-Token_Integrity_Level/0008-ntdll-Implement-process-token-elevation-through-mani.patch	2019-01-23 01:25:22.000000000 +0200
++++ wine-staging-4.0.patched/patches/advapi32-Token_Integrity_Level/0008-ntdll-Implement-process-token-elevation-through-mani.patch	2019-02-03 17:23:22.468256753 +0200
+@@ -55,7 +55,7 @@
+ +    ACTIVATION_CONTEXT_RUN_LEVEL_INFORMATION runlevel;
+      NTSTATUS status;
+      WINE_MODREF *wm;
+-     PEB *peb = NtCurrentTeb()->Peb;
++     BOOL force_large_address_aware = FALSE;
+ @@ -3142,6 +3169,16 @@ void WINAPI LdrInitializeThunk( void *kernel_start, ULONG_PTR unknown2,
+                                         REG_DWORD, &peb->NtGlobalFlag, sizeof(peb->NtGlobalFlag), NULL );
+      heap_set_debug_flags( GetProcessHeap() );
+diff -urN wine-staging-4.0.orig/patches/advapi32-Token_Integrity_Level/0013-server-Correctly-assign-security-labels-for-tokens.patch wine-staging-4.0.patched/patches/advapi32-Token_Integrity_Level/0013-server-Correctly-assign-security-labels-for-tokens.patch
+--- wine-staging-4.0.orig/patches/advapi32-Token_Integrity_Level/0013-server-Correctly-assign-security-labels-for-tokens.patch	2019-01-23 01:25:22.000000000 +0200
++++ wine-staging-4.0.patched/patches/advapi32-Token_Integrity_Level/0013-server-Correctly-assign-security-labels-for-tokens.patch	2019-02-03 17:26:34.834263804 +0200
+@@ -104,8 +104,8 @@
+ -    if (!token_assign_label( process->token, security_high_label_sid ))
+ -        goto error;
+ -
+-     set_fd_events( process->msg_fd, POLLIN );  /* start listening to events */
+-     return process;
++     if (do_esync())
++         process->esync_fd = esync_create_fd( 0, 0 );
+  
+ diff --git a/server/security.h b/server/security.h
+ index 32dfe5f..87377cc 100644
+diff -urN wine-staging-4.0.orig/patches/advapi32-Token_Integrity_Level/definition wine-staging-4.0.patched/patches/advapi32-Token_Integrity_Level/definition
+--- wine-staging-4.0.orig/patches/advapi32-Token_Integrity_Level/definition	2019-01-23 01:25:22.000000000 +0200
++++ wine-staging-4.0.patched/patches/advapi32-Token_Integrity_Level/definition	2019-01-27 16:18:07.928311211 +0200
+@@ -2,4 +2,4 @@
+ Fixes: [39262] Run explorer.exe as unevaluated process
+ Depends: advapi32-CreateRestrictedToken
+ Depends: server-Misc_ACL
+-Depends: Staging
++#Depends: Staging
+diff -urN wine-staging-4.0.orig/patches/ntdll-Dealloc_Thread_Stack/0001-ntdll-Do-not-allow-to-allocate-thread-stack-for-curr.patch wine-staging-4.0.patched/patches/ntdll-Dealloc_Thread_Stack/0001-ntdll-Do-not-allow-to-allocate-thread-stack-for-curr.patch
+--- wine-staging-4.0.orig/patches/ntdll-Dealloc_Thread_Stack/0001-ntdll-Do-not-allow-to-allocate-thread-stack-for-curr.patch	2019-01-23 01:25:22.000000000 +0200
++++ wine-staging-4.0.patched/patches/ntdll-Dealloc_Thread_Stack/0001-ntdll-Do-not-allow-to-allocate-thread-stack-for-curr.patch	2019-02-03 18:31:06.048405696 +0200
+@@ -14,9 +14,9 @@
+ --- a/dlls/ntdll/ntdll_misc.h
+ +++ b/dlls/ntdll/ntdll_misc.h
+ @@ -224,6 +224,7 @@ struct ntdll_thread_data
+-     int                wait_fd[2];    /* fd for sleeping server requests */
+-     BOOL               wow64_redir;   /* Wow64 filesystem redirection flag */
+      pthread_t          pthread_id;    /* pthread thread id */
++     int                esync_queue_fd;/* fd to wait on for driver events */
++     int                esync_apc_fd;  /* fd to wait on for user APCs */
+ +    void              *pthread_stack; /* pthread stack */
+  };
+  
+diff -urN wine-staging-4.0.orig/patches/ntdll-Hide_Wine_Exports/0001-ntdll-Add-support-for-hiding-wine-version-informatio.patch wine-staging-4.0.patched/patches/ntdll-Hide_Wine_Exports/0001-ntdll-Add-support-for-hiding-wine-version-informatio.patch
+--- wine-staging-4.0.orig/patches/ntdll-Hide_Wine_Exports/0001-ntdll-Add-support-for-hiding-wine-version-informatio.patch	2019-01-23 01:25:22.000000000 +0200
++++ wine-staging-4.0.patched/patches/ntdll-Hide_Wine_Exports/0001-ntdll-Add-support-for-hiding-wine-version-informatio.patch	2019-02-03 18:49:45.308446721 +0200
+@@ -137,9 +137,9 @@
+          peb->ProcessParameters->WindowTitle = wm->ldr.FullDllName;
+      version_init( wm->ldr.FullDllName.Buffer );
+ +    hidden_exports_init( wm->ldr.FullDllName.Buffer );
+-     virtual_set_large_address_space();
+  
+-     LdrQueryImageFileExecutionOptions( &peb->ProcessParameters->ImagePathName, globalflagW,
++     if (needs_override_large_address_aware(peb->ProcessParameters->ImagePathName.Buffer) > 0)
++         force_large_address_aware = TRUE;
+ diff --git a/dlls/ntdll/ntdll_misc.h b/dlls/ntdll/ntdll_misc.h
+ index d0fc81b..c09f25c 100644
+ --- a/dlls/ntdll/ntdll_misc.h
+diff -urN wine-staging-4.0.orig/patches/ntdll-LdrInitializeThunk/0001-ntdll-Refactor-LdrInitializeThunk.patch wine-staging-4.0.patched/patches/ntdll-LdrInitializeThunk/0001-ntdll-Refactor-LdrInitializeThunk.patch
+--- wine-staging-4.0.orig/patches/ntdll-LdrInitializeThunk/0001-ntdll-Refactor-LdrInitializeThunk.patch	2019-01-23 01:25:22.000000000 +0200
++++ wine-staging-4.0.patched/patches/ntdll-LdrInitializeThunk/0001-ntdll-Refactor-LdrInitializeThunk.patch	2019-02-03 17:34:26.663281098 +0200
+@@ -113,7 +113,7 @@
+ +
+  # Virtual memory
+  @ cdecl __wine_locked_recvmsg(long ptr long)
+- 
++ @ cdecl __wine_needs_override_large_address_aware()
+ diff --git a/dlls/ntdll/ntdll_misc.h b/dlls/ntdll/ntdll_misc.h
+ index 8fa86b7..aeab3d4 100644
+ --- a/dlls/ntdll/ntdll_misc.h
+@@ -124,7 +124,7 @@
+  extern LIST_ENTRY tls_links DECLSPEC_HIDDEN;
+ -extern NTSTATUS attach_dlls( CONTEXT *context, void **entry ) DECLSPEC_HIDDEN;
+  extern FARPROC RELAY_GetProcAddress( HMODULE module, const IMAGE_EXPORT_DIRECTORY *exports,
+-                                      DWORD exp_size, FARPROC proc, DWORD ordinal, const WCHAR *user ) DECLSPEC_HIDDEN;
++                                      DWORD exp_size, FARPROC proc, DWORD ordinal, const WCHAR *user, DWORD builtin ) DECLSPEC_HIDDEN;
+  extern FARPROC SNOOP_GetProcAddress( HMODULE hmod, const IMAGE_EXPORT_DIRECTORY *exports, DWORD exp_size,
+ diff --git a/dlls/ntdll/signal_arm.c b/dlls/ntdll/signal_arm.c
+ index 5e35907..397a7c6 100644
+diff -urN wine-staging-4.0.orig/patches/ntdll-NtSetLdtEntries/0001-ntdll-Implement-NtSetLdtEntries.patch wine-staging-4.0.patched/patches/ntdll-NtSetLdtEntries/0001-ntdll-Implement-NtSetLdtEntries.patch
+--- wine-staging-4.0.orig/patches/ntdll-NtSetLdtEntries/0001-ntdll-Implement-NtSetLdtEntries.patch	2019-01-23 01:25:22.000000000 +0200
++++ wine-staging-4.0.patched/patches/ntdll-NtSetLdtEntries/0001-ntdll-Implement-NtSetLdtEntries.patch	2019-02-03 18:35:30.717415397 +0200
+@@ -13,9 +13,9 @@
+ --- a/dlls/kernel32/tests/thread.c
+ +++ b/dlls/kernel32/tests/thread.c
+ @@ -102,6 +102,7 @@ static NTSTATUS (WINAPI *pNtQueryInformationThread)(HANDLE,THREADINFOCLASS,PVOID
+- static BOOL (WINAPI *pGetThreadGroupAffinity)(HANDLE,GROUP_AFFINITY*);
+- static BOOL (WINAPI *pSetThreadGroupAffinity)(HANDLE,const GROUP_AFFINITY*,GROUP_AFFINITY*);
+  static NTSTATUS (WINAPI *pNtSetInformationThread)(HANDLE,THREADINFOCLASS,LPCVOID,ULONG);
++ static HRESULT (WINAPI *pSetThreadDescription)(HANDLE,const WCHAR *);
++ static HRESULT (WINAPI *pGetThreadDescription)(HANDLE,WCHAR **);
+ +static NTSTATUS (WINAPI *pNtSetLdtEntries)(ULONG,ULONG,ULONG,ULONG,ULONG,ULONG);
+  
+  static HANDLE create_target_process(const char *arg)
+diff -urN wine-staging-4.0.orig/patches/ntdll-NtSuspendProcess/0001-ntdll-Implement-NtSuspendProcess-and-NtResumeProcess.patch wine-staging-4.0.patched/patches/ntdll-NtSuspendProcess/0001-ntdll-Implement-NtSuspendProcess-and-NtResumeProcess.patch
+--- wine-staging-4.0.orig/patches/ntdll-NtSuspendProcess/0001-ntdll-Implement-NtSuspendProcess-and-NtResumeProcess.patch	2019-01-23 01:25:22.000000000 +0200
++++ wine-staging-4.0.patched/patches/ntdll-NtSuspendProcess/0001-ntdll-Implement-NtSuspendProcess-and-NtResumeProcess.patch	2019-02-03 17:54:10.081324474 +0200
+@@ -287,7 +287,7 @@
+ index 41d8f5a4..2aa76bdc 100644
+ --- a/server/protocol.def
+ +++ b/server/protocol.def
+-@@ -3864,3 +3864,15 @@ struct handle_info
++@@ -3864,6 +3864,18 @@ struct handle_info
+      unsigned int threads;     /* number of threads */
+      unsigned int handles;     /* number of handles */
+  @END
+@@ -303,6 +303,9 @@
+ +@REQ(resume_process)
+ +    obj_handle_t handle;       /* process handle */
+ +@END
++ 
++ /* Create a new eventfd-based synchronization object */
++ @REQ(create_esync)
+ diff --git a/server/thread.c b/server/thread.c
+ index 7162fc33..8bdfe41d 100644
+ --- a/server/thread.c
+diff -urN wine-staging-4.0.orig/patches/ntdll-RtlCreateUserThread/0001-ntdll-Refactor-RtlCreateUserThread-into-NtCreateThre.patch wine-staging-4.0.patched/patches/ntdll-RtlCreateUserThread/0001-ntdll-Refactor-RtlCreateUserThread-into-NtCreateThre.patch
+--- wine-staging-4.0.orig/patches/ntdll-RtlCreateUserThread/0001-ntdll-Refactor-RtlCreateUserThread-into-NtCreateThre.patch	2019-01-23 01:25:22.000000000 +0200
++++ wine-staging-4.0.patched/patches/ntdll-RtlCreateUserThread/0001-ntdll-Refactor-RtlCreateUserThread-into-NtCreateThre.patch	2019-02-03 17:40:03.309293437 +0200
+@@ -126,8 +126,8 @@
+          req->request_fd = request_pipe[0];
+          wine_server_add_data( req, objattr, len );
+ @@ -664,19 +670,19 @@ NTSTATUS WINAPI RtlCreateUserThread( HANDLE process, SECURITY_DESCRIPTOR *descr,
+-     thread_data->wait_fd[1]  = -1;
+-     thread_data->start_stack = (char *)teb->Tib.StackBase;
++     thread_data->esync_queue_fd = -1;
++     thread_data->esync_apc_fd = -1;
+  
+ -    pthread_attr_init( &attr );
+ -    pthread_attr_setstack( &attr, teb->DeallocationStack,
+diff -urN wine-staging-4.0.orig/patches/ntdll-SystemRoot_Symlink/0001-ntdll-Add-special-handling-for-SystemRoot-to-satisfy.patch wine-staging-4.0.patched/patches/ntdll-SystemRoot_Symlink/0001-ntdll-Add-special-handling-for-SystemRoot-to-satisfy.patch
+--- wine-staging-4.0.orig/patches/ntdll-SystemRoot_Symlink/0001-ntdll-Add-special-handling-for-SystemRoot-to-satisfy.patch	2019-01-23 01:25:22.000000000 +0200
++++ wine-staging-4.0.patched/patches/ntdll-SystemRoot_Symlink/0001-ntdll-Add-special-handling-for-SystemRoot-to-satisfy.patch	2019-02-03 18:38:43.227422454 +0200
+@@ -13,7 +13,7 @@
+ --- a/dlls/ntdll/om.c
+ +++ b/dlls/ntdll/om.c
+ @@ -39,6 +39,7 @@
+- #include "ntdll_misc.h"
++ #include "esync.h"
+  #include "wine/server.h"
+  #include "wine/exception.h"
+ +#include "wine/unicode.h"
+diff -urN wine-staging-4.0.orig/patches/ntdll-User_Shared_Data/0001-ntdll-Move-code-to-update-user-shared-data-into-a-se.patch wine-staging-4.0.patched/patches/ntdll-User_Shared_Data/0001-ntdll-Move-code-to-update-user-shared-data-into-a-se.patch
+--- wine-staging-4.0.orig/patches/ntdll-User_Shared_Data/0001-ntdll-Move-code-to-update-user-shared-data-into-a-se.patch	2019-01-23 01:25:22.000000000 +0200
++++ wine-staging-4.0.patched/patches/ntdll-User_Shared_Data/0001-ntdll-Move-code-to-update-user-shared-data-into-a-se.patch	2019-02-03 18:58:55.078466872 +0200
+@@ -13,13 +13,15 @@
+ index 5e7c463..a339562 100644
+ --- a/dlls/ntdll/ntdll.spec
+ +++ b/dlls/ntdll/ntdll.spec
+-@@ -1509,3 +1509,6 @@
++@@ -1509,5 +1509,8 @@
+  # Filesystem
+  @ cdecl wine_nt_to_unix_file_name(ptr ptr long long)
+  @ cdecl wine_unix_to_nt_file_name(ptr ptr)
+ +
+ +# User shared data
+ +@ cdecl __wine_user_shared_data()
++ 
++ @ cdecl __wine_esync_set_queue_fd(long)
+ diff --git a/dlls/ntdll/thread.c b/dlls/ntdll/thread.c
+ index f1fff59..45bfb14 100644
+ --- a/dlls/ntdll/thread.c
+@@ -76,7 +78,7 @@
+ +    __wine_user_shared_data();
+      fill_cpu_info();
+  
+-     NtCreateKeyedEvent( &keyed_event, GENERIC_READ | GENERIC_WRITE, NULL, 0 );
++     esync_init();
+ -- 
+ 2.7.4
+ 
+diff -urN wine-staging-4.0.orig/patches/ntdll-User_Shared_Data/0003-ntdll-Create-thread-to-update-user_shared_data-time-.patch wine-staging-4.0.patched/patches/ntdll-User_Shared_Data/0003-ntdll-Create-thread-to-update-user_shared_data-time-.patch
+--- wine-staging-4.0.orig/patches/ntdll-User_Shared_Data/0003-ntdll-Create-thread-to-update-user_shared_data-time-.patch	2019-01-23 01:25:22.000000000 +0200
++++ wine-staging-4.0.patched/patches/ntdll-User_Shared_Data/0003-ntdll-Create-thread-to-update-user_shared_data-time-.patch	2019-02-03 19:02:11.739474080 +0200
+@@ -81,8 +81,8 @@
+      version_init( wm->ldr.FullDllName.Buffer );
+ +    user_shared_data_init();
+      hidden_exports_init( wm->ldr.FullDllName.Buffer );
+-     virtual_set_large_address_space();
+  
++     if (needs_override_large_address_aware(peb->ProcessParameters->ImagePathName.Buffer) > 0)
+ diff --git a/dlls/ntdll/ntdll_misc.h b/dlls/ntdll/ntdll_misc.h
+ index 5def773..661ba8b 100644
+ --- a/dlls/ntdll/ntdll_misc.h
+diff -urN wine-staging-4.0.orig/patches/patchinstall.sh wine-staging-4.0.patched/patches/patchinstall.sh
+--- wine-staging-4.0.orig/patches/patchinstall.sh	2019-01-23 01:25:22.000000000 +0200
++++ wine-staging-4.0.patched/patches/patchinstall.sh	2019-02-03 17:08:21.875223744 +0200
+@@ -1765,10 +1765,10 @@
+ fi
+ 
+ if test "$enable_winex11_WM_WINDOWPOSCHANGING" -eq 1; then
+-	if test "$enable_winex11__NET_ACTIVE_WINDOW" -gt 1; then
+-		abort "Patchset winex11-_NET_ACTIVE_WINDOW disabled, but winex11-WM_WINDOWPOSCHANGING depends on that."
+-	fi
+-	enable_winex11__NET_ACTIVE_WINDOW=1
++#	if test "$enable_winex11__NET_ACTIVE_WINDOW" -gt 1; then
++#		abort "Patchset winex11-_NET_ACTIVE_WINDOW disabled, but winex11-WM_WINDOWPOSCHANGING depends on that."
++#	fi
++	echo "enable_winex11__NET_ACTIVE_WINDOW=1"
+ fi
+ 
+ if test "$enable_winedevice_Default_Drivers" -eq 1; then
+@@ -1796,26 +1796,26 @@
+ 	if test "$enable_d3d9_Tests" -gt 1; then
+ 		abort "Patchset d3d9-Tests disabled, but wined3d-CSMT_Main depends on that."
+ 	fi
+-	if test "$enable_wined3d_Accounting" -gt 1; then
+-		abort "Patchset wined3d-Accounting disabled, but wined3d-CSMT_Main depends on that."
+-	fi
+-	if test "$enable_wined3d_DXTn" -gt 1; then
+-		abort "Patchset wined3d-DXTn disabled, but wined3d-CSMT_Main depends on that."
+-	fi
+-	if test "$enable_wined3d_Dual_Source_Blending" -gt 1; then
+-		abort "Patchset wined3d-Dual_Source_Blending disabled, but wined3d-CSMT_Main depends on that."
+-	fi
+-	if test "$enable_wined3d_Silence_FIXMEs" -gt 1; then
+-		abort "Patchset wined3d-Silence_FIXMEs disabled, but wined3d-CSMT_Main depends on that."
+-	fi
++#	if test "$enable_wined3d_Accounting" -gt 1; then
++#		abort "Patchset wined3d-Accounting disabled, but wined3d-CSMT_Main depends on that."
++#	fi
++#	if test "$enable_wined3d_DXTn" -gt 1; then
++#		abort "Patchset wined3d-DXTn disabled, but wined3d-CSMT_Main depends on that."
++#	fi
++#	if test "$enable_wined3d_Dual_Source_Blending" -gt 1; then
++#		abort "Patchset wined3d-Dual_Source_Blending disabled, but wined3d-CSMT_Main depends on that."
++#	fi
++#	if test "$enable_wined3d_Silence_FIXMEs" -gt 1; then
++#		abort "Patchset wined3d-Silence_FIXMEs disabled, but wined3d-CSMT_Main depends on that."
++#	fi
+ 	if test "$enable_wined3d_UAV_Counters" -gt 1; then
+ 		abort "Patchset wined3d-UAV_Counters disabled, but wined3d-CSMT_Main depends on that."
+ 	fi
+ 	enable_d3d11_Deferred_Context=1
+ 	enable_d3d9_Tests=1
+-	enable_wined3d_Accounting=1
+-	enable_wined3d_DXTn=1
+-	enable_wined3d_Dual_Source_Blending=1
++#	enable_wined3d_Accounting=1
++#	enable_wined3d_DXTn=1
++#	enable_wined3d_Dual_Source_Blending=1
+ 	enable_wined3d_Silence_FIXMEs=1
+ 	enable_wined3d_UAV_Counters=1
+ fi
+@@ -1846,14 +1846,14 @@
+ fi
+ 
+ if test "$enable_windowscodecs_TIFF_Support" -eq 1; then
+-	if test "$enable_windowscodecs_GIF_Encoder" -gt 1; then
+-		abort "Patchset windowscodecs-GIF_Encoder disabled, but windowscodecs-TIFF_Support depends on that."
+-	fi
+-	if test "$enable_windowscodecs_IWICPalette_InitializeFromBitmap" -gt 1; then
+-		abort "Patchset windowscodecs-IWICPalette_InitializeFromBitmap disabled, but windowscodecs-TIFF_Support depends on that."
+-	fi
+-	enable_windowscodecs_GIF_Encoder=1
+-	enable_windowscodecs_IWICPalette_InitializeFromBitmap=1
++#	if test "$enable_windowscodecs_GIF_Encoder" -gt 1; then
++#		abort "Patchset windowscodecs-GIF_Encoder disabled, but windowscodecs-TIFF_Support depends on that."
++#	fi
++#	if test "$enable_windowscodecs_IWICPalette_InitializeFromBitmap" -gt 1; then
++#		abort "Patchset windowscodecs-IWICPalette_InitializeFromBitmap disabled, but windowscodecs-TIFF_Support depends on that."
++#	fi
++	echo "enable_windowscodecs_GIF_Encoder=1"
++#	enable_windowscodecs_IWICPalette_InitializeFromBitmap=1
+ fi
+ 
+ if test "$enable_uxtheme_GTK_Theming" -eq 1; then
+@@ -1906,17 +1906,17 @@
+ 	if test "$enable_server_Misc_ACL" -gt 1; then
+ 		abort "Patchset server-Misc_ACL disabled, but server-Object_Types depends on that."
+ 	fi
+-	if test "$enable_server_Shared_Memory" -gt 1; then
+-		abort "Patchset server-Shared_Memory disabled, but server-Object_Types depends on that."
+-	fi
++#	if test "$enable_server_Shared_Memory" -gt 1; then
++#		abort "Patchset server-Shared_Memory disabled, but server-Object_Types depends on that."
++#	fi
+ 	enable_server_Misc_ACL=1
+-	enable_server_Shared_Memory=1
++#	enable_server_Shared_Memory=1
+ fi
+ 
+ if test "$enable_server_Shared_Memory" -eq 1; then
+-	if test "$enable_ntdll_Threading" -gt 1; then
+-		abort "Patchset ntdll-Threading disabled, but server-Shared_Memory depends on that."
+-	fi
++#	if test "$enable_ntdll_Threading" -gt 1; then
++#		abort "Patchset ntdll-Threading disabled, but server-Shared_Memory depends on that."
++#	fi
+ 	if test "$enable_server_ClipCursor" -gt 1; then
+ 		abort "Patchset server-ClipCursor disabled, but server-Shared_Memory depends on that."
+ 	fi
+@@ -1929,7 +1929,7 @@
+ 	if test "$enable_server_Signal_Thread" -gt 1; then
+ 		abort "Patchset server-Signal_Thread disabled, but server-Shared_Memory depends on that."
+ 	fi
+-	enable_ntdll_Threading=1
++#	enable_ntdll_Threading=1
+ 	enable_server_ClipCursor=1
+ 	enable_server_Key_State=1
+ 	enable_server_PeekMessage=1
+@@ -2018,10 +2018,10 @@
+ fi
+ 
+ if test "$enable_ntdll_NtSuspendProcess" -eq 1; then
+-	if test "$enable_kernel32_K32GetPerformanceInfo" -gt 1; then
+-		abort "Patchset kernel32-K32GetPerformanceInfo disabled, but ntdll-NtSuspendProcess depends on that."
+-	fi
+-	enable_kernel32_K32GetPerformanceInfo=1
++#	if test "$enable_kernel32_K32GetPerformanceInfo" -gt 1; then
++#		abort "Patchset kernel32-K32GetPerformanceInfo disabled, but ntdll-NtSuspendProcess depends on that."
++#	fi
++	echo "enable_kernel32_K32GetPerformanceInfo=1"
+ fi
+ 
+ if test "$enable_ntdll_NtQueryVirtualMemory" -eq 1; then
+@@ -2082,24 +2082,24 @@
+ fi
+ 
+ if test "$enable_ntdll_User_Shared_Data" -eq 1; then
+-	if test "$enable_ntdll_Hide_Wine_Exports" -gt 1; then
+-		abort "Patchset ntdll-Hide_Wine_Exports disabled, but ntdll-User_Shared_Data depends on that."
+-	fi
+-	enable_ntdll_Hide_Wine_Exports=1
++#	if test "$enable_ntdll_Hide_Wine_Exports" -gt 1; then
++#		abort "Patchset ntdll-Hide_Wine_Exports disabled, but ntdll-User_Shared_Data depends on that."
++#	fi
++	echo "enable_ntdll_Hide_Wine_Exports=1"
+ fi
+ 
+ if test "$enable_ntdll_Hide_Wine_Exports" -eq 1; then
+-	if test "$enable_ntdll_ThreadTime" -gt 1; then
+-		abort "Patchset ntdll-ThreadTime disabled, but ntdll-Hide_Wine_Exports depends on that."
+-	fi
+-	enable_ntdll_ThreadTime=1
++#	if test "$enable_ntdll_ThreadTime" -gt 1; then
++#		abort "Patchset ntdll-ThreadTime disabled, but ntdll-Hide_Wine_Exports depends on that."
++#	fi
++	echo "enable_ntdll_ThreadTime=1"
+ fi
+ 
+ if test "$enable_ntdll_ApiSetMap" -eq 1; then
+-	if test "$enable_ntdll_ThreadTime" -gt 1; then
+-		abort "Patchset ntdll-ThreadTime disabled, but ntdll-ApiSetMap depends on that."
+-	fi
+-	enable_ntdll_ThreadTime=1
++#	if test "$enable_ntdll_ThreadTime" -gt 1; then
++#		abort "Patchset ntdll-ThreadTime disabled, but ntdll-ApiSetMap depends on that."
++#	fi
++	echo "enable_ntdll_ThreadTime=1"
+ fi
+ 
+ if test "$enable_libs_Unicode_Collation" -eq 1; then
+@@ -2145,24 +2145,24 @@
+ fi
+ 
+ if test "$enable_dsound_EAX" -eq 1; then
+-	if test "$enable_dsound_Fast_Mixer" -gt 1; then
+-		abort "Patchset dsound-Fast_Mixer disabled, but dsound-EAX depends on that."
+-	fi
+-	enable_dsound_Fast_Mixer=1
++#	if test "$enable_dsound_Fast_Mixer" -gt 1; then
++#		abort "Patchset dsound-Fast_Mixer disabled, but dsound-EAX depends on that."
++#	fi
++	echo "enable_dsound_Fast_Mixer=1"
+ fi
+ 
+ if test "$enable_d3dx9_36_DXTn" -eq 1; then
+-	if test "$enable_wined3d_DXTn" -gt 1; then
+-		abort "Patchset wined3d-DXTn disabled, but d3dx9_36-DXTn depends on that."
+-	fi
+-	enable_wined3d_DXTn=1
++#	if test "$enable_wined3d_DXTn" -gt 1; then
++#		abort "Patchset wined3d-DXTn disabled, but d3dx9_36-DXTn depends on that."
++#	fi
++	echo "enable_wined3d_DXTn=1"
+ fi
+ 
+ if test "$enable_wined3d_DXTn" -eq 1; then
+-	if test "$enable_wined3d_WINED3DFMT_B8G8R8X8_UNORM" -gt 1; then
+-		abort "Patchset wined3d-WINED3DFMT_B8G8R8X8_UNORM disabled, but wined3d-DXTn depends on that."
+-	fi
+-	enable_wined3d_WINED3DFMT_B8G8R8X8_UNORM=1
++#	if test "$enable_wined3d_WINED3DFMT_B8G8R8X8_UNORM" -gt 1; then
++#		abort "Patchset wined3d-WINED3DFMT_B8G8R8X8_UNORM disabled, but wined3d-DXTn depends on that."
++#	fi
++	echo "enable_wined3d_WINED3DFMT_B8G8R8X8_UNORM=1"
+ fi
+ 
+ if test "$enable_d3d11_Deferred_Context" -eq 1; then
+@@ -2180,16 +2180,16 @@
+ fi
+ 
+ if test "$enable_advapi32_Token_Integrity_Level" -eq 1; then
+-	if test "$enable_Staging" -gt 1; then
+-		abort "Patchset Staging disabled, but advapi32-Token_Integrity_Level depends on that."
+-	fi
++#	if test "$enable_Staging" -gt 1; then
++#		abort "Patchset Staging disabled, but advapi32-Token_Integrity_Level depends on that."
++#	fi
+ 	if test "$enable_advapi32_CreateRestrictedToken" -gt 1; then
+ 		abort "Patchset advapi32-CreateRestrictedToken disabled, but advapi32-Token_Integrity_Level depends on that."
+ 	fi
+ 	if test "$enable_server_Misc_ACL" -gt 1; then
+ 		abort "Patchset server-Misc_ACL disabled, but advapi32-Token_Integrity_Level depends on that."
+ 	fi
+-	enable_Staging=1
++	#enable_Staging=1
+ 	enable_advapi32_CreateRestrictedToken=1
+ 	enable_server_Misc_ACL=1
+ fi
+diff -urN wine-staging-4.0.orig/patches/server-Desktop_Refcount/0001-server-Introduce-a-new-alloc_handle-object-callback..patch wine-staging-4.0.patched/patches/server-Desktop_Refcount/0001-server-Introduce-a-new-alloc_handle-object-callback..patch
+--- wine-staging-4.0.orig/patches/server-Desktop_Refcount/0001-server-Introduce-a-new-alloc_handle-object-callback..patch	2019-01-23 01:25:22.000000000 +0200
++++ wine-staging-4.0.patched/patches/server-Desktop_Refcount/0001-server-Introduce-a-new-alloc_handle-object-callback..patch	2019-02-04 08:51:30.424297896 +0200
+@@ -213,6 +213,18 @@
+      no_close_handle,              /* close_handle */
+      directory_destroy             /* destroy */
+  };
++diff --git a/server/esync.c b/server/esync.c
++index a0745a2306..b712867e4b 100644
++--- a/server/esync.c
+++++ b/server/esync.c
++@@ -136,6 +136,7 @@ const struct object_ops esync_ops =
++     directory_link_name,       /* link_name */
++     default_unlink_name,       /* unlink_name */
++     no_open_file,              /* open_file */
+++    no_alloc_handle,           /* alloc_handle */
++     no_close_handle,           /* close_handle */
++     esync_destroy              /* destroy */
++ };
+ diff --git a/server/event.c b/server/event.c
+ index cfc0f6a..608fafb 100644
+ --- a/server/event.c
+@@ -223,7 +235,7 @@
+      no_open_file,              /* open_file */
+ +    no_alloc_handle,           /* alloc_handle */
+      no_close_handle,           /* close_handle */
+-     no_destroy                 /* destroy */
++     event_destroy              /* destroy */
+  };
+ @@ -101,6 +102,7 @@ static const struct object_ops keyed_event_ops =
+      directory_link_name,         /* link_name */
+diff -urN wine-staging-4.0.orig/patches/server-device_manager_destroy/0001-server-Fix-crash-when-a-device-driver-segfaults-duri.patch wine-staging-4.0.patched/patches/server-device_manager_destroy/0001-server-Fix-crash-when-a-device-driver-segfaults-duri.patch
+--- wine-staging-4.0.orig/patches/server-device_manager_destroy/0001-server-Fix-crash-when-a-device-driver-segfaults-duri.patch	2019-01-23 01:25:22.000000000 +0200
++++ wine-staging-4.0.patched/patches/server-device_manager_destroy/0001-server-Fix-crash-when-a-device-driver-segfaults-duri.patch	2019-02-03 18:15:14.047370803 +0200
+@@ -31,9 +31,9 @@
+ +        grab_object( &device->obj );
+          delete_device( device );
+ +        release_object( &device->obj );
+-     }
+- }
+  
++         if (do_esync())
++             close( manager->esync_fd );
+ -- 
+ 2.12.2
+ 
+diff -urN wine-staging-4.0.orig/patches/server-Misc_ACL/0001-server-Add-default-security-descriptor-ownership-for.patch wine-staging-4.0.patched/patches/server-Misc_ACL/0001-server-Add-default-security-descriptor-ownership-for.patch
+--- wine-staging-4.0.orig/patches/server-Misc_ACL/0001-server-Add-default-security-descriptor-ownership-for.patch	2019-01-23 01:25:22.000000000 +0200
++++ wine-staging-4.0.patched/patches/server-Misc_ACL/0001-server-Add-default-security-descriptor-ownership-for.patch	2019-02-03 17:05:29.984217443 +0200
+@@ -80,7 +80,7 @@
+ +static struct security_descriptor *process_get_sd( struct object *obj );
+  static void process_poll_event( struct fd *fd, int event );
+  static void process_destroy( struct object *obj );
+- static void terminate_process( struct process *process, struct thread *skip, int exit_code );
++ static int process_get_esync_fd( struct object *obj, enum esync_type *type );
+ @@ -78,7 +79,7 @@ static const struct object_ops process_ops =
+      no_signal,                   /* signal */
+      no_get_fd,                   /* get_fd */
+diff -urN wine-staging-4.0.orig/patches/server-Object_Types/0007-server-Add-type-Thread.patch wine-staging-4.0.patched/patches/server-Object_Types/0007-server-Add-type-Thread.patch
+--- wine-staging-4.0.orig/patches/server-Object_Types/0007-server-Add-type-Thread.patch	2019-01-23 01:25:22.000000000 +0200
++++ wine-staging-4.0.patched/patches/server-Object_Types/0007-server-Add-type-Thread.patch	2019-02-03 17:11:40.803231035 +0200
+@@ -44,8 +44,8 @@
+  static void dump_thread( struct object *obj, int verbose );
+ +static struct object_type *thread_get_type( struct object *obj );
+  static int thread_signaled( struct object *obj, struct wait_queue_entry *entry );
++ static int thread_get_esync_fd( struct object *obj, enum esync_type *type );
+  static unsigned int thread_map_access( struct object *obj, unsigned int access );
+- static void thread_poll_event( struct fd *fd, int event );
+ @@ -138,7 +139,7 @@ static const struct object_ops thread_ops =
+  {
+      sizeof(struct thread),      /* size */
+diff -urN wine-staging-4.0.orig/patches/wineboot-drivers_etc_Stubs/0001-wineboot-Init-system32-drivers-etc-host-networks-pro.patch wine-staging-4.0.patched/patches/wineboot-drivers_etc_Stubs/0001-wineboot-Init-system32-drivers-etc-host-networks-pro.patch
+--- wine-staging-4.0.orig/patches/wineboot-drivers_etc_Stubs/0001-wineboot-Init-system32-drivers-etc-host-networks-pro.patch	2019-01-23 01:25:22.000000000 +0200
++++ wine-staging-4.0.patched/patches/wineboot-drivers_etc_Stubs/0001-wineboot-Init-system32-drivers-etc-host-networks-pro.patch	2019-02-03 18:43:10.378432245 +0200
+@@ -57,7 +57,7 @@
+   */
+ @@ -1023,6 +1058,9 @@ static void update_wineprefix( BOOL force )
+              }
+-             DestroyWindow( hwnd );
++ /*            DestroyWindow( hwnd );*/
+          }
+ +
+ +        create_etc_stub_files();
+diff -urN wine-staging-4.0.orig/patches/winex11-ClipCursor/0001-winex11-Forward-all-clipping-requests-to-the-right-t.patch wine-staging-4.0.patched/patches/winex11-ClipCursor/0001-winex11-Forward-all-clipping-requests-to-the-right-t.patch
+--- wine-staging-4.0.orig/patches/winex11-ClipCursor/0001-winex11-Forward-all-clipping-requests-to-the-right-t.patch	2019-01-23 01:25:22.000000000 +0200
++++ wine-staging-4.0.patched/patches/winex11-ClipCursor/0001-winex11-Forward-all-clipping-requests-to-the-right-t.patch	2019-02-03 19:24:23.806522905 +0200
+@@ -36,7 +36,7 @@
+      }
+      return 0;
+  }
+-@@ -1391,22 +1391,22 @@ BOOL CDECL X11DRV_ClipCursor( LPCRECT clip )
++@@ -1391,23 +1391,23 @@ BOOL CDECL X11DRV_ClipCursor( LPCRECT clip )
+      if (grab_pointer)
+      {
+          HWND foreground = GetForegroundWindow();
+@@ -52,8 +52,9 @@
+ +        }
+  
+          /* we are clipping if the clip rectangle is smaller than the screen */
+-         if (clip->left > virtual_rect.left || clip->right < virtual_rect.right ||
+-             clip->top > virtual_rect.top || clip->bottom < virtual_rect.bottom)
++         if (!(!fs_hack_enabled() && clip->left == 0 && clip->top == 0 && fs_hack_matches_last_mode(clip->right, clip->bottom)) && /* fix games trying to reset clip to full screen */
++                 (clip->left > virtual_rect.left || clip->right < virtual_rect.right ||
++                  clip->top > virtual_rect.top || clip->bottom < virtual_rect.bottom))
+          {
+ -            DWORD tid, pid;
+ -
+@@ -68,7 +69,7 @@
+ -            else if (grab_clipping_window( clip )) return TRUE;
+ +            if (grab_clipping_window( clip )) return TRUE;
+          }
+-         else /* if currently clipping, check if we should switch to fullscreen clipping */
++         else /* check if we should switch to fullscreen clipping */
+          {
+ -- 
+ 2.3.1
+diff -urN wine-staging-4.0.orig/patches/wuauserv-Dummy_Service/0001-wuauserv-Add-dummy-service.patch wine-staging-4.0.patched/patches/wuauserv-Dummy_Service/0001-wuauserv-Add-dummy-service.patch
+--- wine-staging-4.0.orig/patches/wuauserv-Dummy_Service/0001-wuauserv-Add-dummy-service.patch	2019-01-23 01:25:22.000000000 +0200
++++ wine-staging-4.0.patched/patches/wuauserv-Dummy_Service/0001-wuauserv-Add-dummy-service.patch	2019-02-03 17:58:27.008333891 +0200
+@@ -65,8 +65,8 @@
+ +ErrorControl=1
+ +
+  [Services]
+- HKLM,%CurrentVersion%\RunServices,"winemenubuilder",2,"%11%\winemenubuilder.exe -a -r"
+  HKLM,"System\CurrentControlSet\Services\Eventlog\Application",,16
++ HKLM,"System\CurrentControlSet\Services\Eventlog\System","Sources",0x10000,""
+ diff --git a/programs/wuauserv/Makefile.in b/programs/wuauserv/Makefile.in
+ new file mode 100644
+ index 0000000..16f27f1
