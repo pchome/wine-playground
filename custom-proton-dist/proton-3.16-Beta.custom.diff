@@ -1,0 +1,70 @@
+--- a/proton
++++ b/proton
+@@ -168,7 +173,10 @@
+ else:
+     env[ld_path_var] = lib64dir + ":" + libdir
+ 
+-env["WINEDLLPATH"] = lib64dir + "/wine:" + libdir + "/wine"
++if "WINEDLLPATH" in os.environ:
++    env["WINEDLLPATH"] = os.environ["WINEDLLPATH"] + ":" + lib64dir + "/wine:" + libdir + "/wine"
++else:
++    env["WINEDLLPATH"] = lib64dir + "/wine:" + libdir + "/wine"
+ 
+ if "PATH" in os.environ:
+     env["PATH"] = bindir + ":" + os.environ["PATH"]
+@@ -220,6 +228,7 @@
+ check_environment("PROTON_NO_D3D11", "nod3d11")
+ check_environment("PROTON_NO_ESYNC", "noesync")
+ check_environment("PROTON_FORCE_LARGE_ADDRESS_AWARE", "forcelgadd")
++check_environment("PROTON_DXUP", "dxup")
+ 
+ if not "noesync" in config_opts:
+     env["WINEESYNC"] = "1"
+@@ -372,10 +388,10 @@
+             log("Unable to write VR config! " + str(sys.exc_info()[1]))
+
+     dxvkfiles = ("d3d11", "d3d10", "d3d10core", "d3d10_1", "dxgi")
+-    def make_dxvk_links(dll_dir, link_dir):
++    def make_dxvk_links(dll_dir, link_dir, file_sfx=""):
+         for f in dxvkfiles:
+             dst = link_dir + "/" + f + ".dll"
+-            src = dll_dir + "/" + f + ".dll"
++            src = dll_dir + "/" + f + ".dll" + file_sfx
+             if os.path.lexists(dst):
+                 os.remove(dst)
+             os.symlink(src, dst)
+@@ -390,13 +406,30 @@
+             prefix + "drive_c/windows/syswow64")
+     else:
+         #use vulkan-based dxvk for d3d11 and d3d10
+-        make_dxvk_links(basedir + "/dist/lib64/wine/dxvk/",
+-            prefix + "drive_c/windows/system32")
+-        make_dxvk_links(basedir + "/dist/lib/wine/dxvk/",
+-            prefix + "drive_c/windows/syswow64")
++        make_dxvk_links("/usr/lib64/dxvk-9999/",
++            prefix + "drive_c/windows/system32", ".so")
++        make_dxvk_links("/usr/lib/dxvk-9999/",
++            prefix + "drive_c/windows/syswow64", ".so")
+         for f in dxvkfiles:
+             dlloverrides[f] = "n"
+ 
++    def make_dxup_links(dll_dir, link_dir, file_sfx=""):
++        dst = link_dir + "/d3d9.dll"
++        src = dll_dir + "/d3d9.dll" + file_sfx
++        if os.path.lexists(dst):
++            os.remove(dst)
++        os.symlink(src, dst)
++
++    if "dxup" in config_opts:
++        #use vulkan-based dxvk and dxup for d3d9
++        make_dxup_links("/usr/lib64/dxup-9999/", prefix + "drive_c/windows/system32", ".so")
++        make_dxup_links("/usr/lib/dxup-9999/", prefix + "drive_c/windows/syswow64", ".so")
++        dlloverrides["d3d9"] = "n"
++    else:
++        #use gl-based wined3d for d3d9
++        make_dxup_links(basedir + "/dist/lib64/wine/fakedlls/", prefix + "drive_c/windows/system32")
++        make_dxup_links(basedir + "/dist/lib/wine/fakedlls/", prefix + "drive_c/windows/syswow64")
++
+ if "nod3d11" in config_opts:
+     dlloverrides["d3d11"] = ""
+     if "dxgi" in dlloverrides:
